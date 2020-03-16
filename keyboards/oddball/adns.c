@@ -140,7 +140,7 @@ void pointing_device_init(void) {
 
     // mode 3
     SPI_Init(
-        SPI_SPEED_FCPU_DIV_8 |
+        SPI_SPEED_FCPU_DIV_128 |
         SPI_ORDER_MSB_FIRST |
         SPI_SCK_LEAD_FALLING |
         SPI_SAMPLE_TRAILING |
