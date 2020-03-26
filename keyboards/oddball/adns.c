@@ -156,7 +156,7 @@ void pointing_device_init(void) {
 
     // reboot
     adns_write(Power_Up_Reset, 0x5a);
-    wait_ms(50);
+    wait_ms(60);
 
     // read registers and discard
     adns_read(Motion);
