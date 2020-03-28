@@ -81,8 +81,8 @@ enum motion_burst_property{
 };
 
 // used to track the motion delta between updates
-volatile int32_t delta_x;
-volatile int32_t delta_y;
+volatile int8_t delta_x;
+volatile int8_t delta_y;
 
 void adns_begin(void){
     PORTB &= ~ (1 << NCS);
@@ -228,56 +228,63 @@ void pointing_device_init(void) {
     wait_ms(100);
 }
 
-void pointing_device_task(void) {
+void tap_tb(int16_t delta, uint16_t keycode0, uint16_t keycode1) {
+	if(delta == 0) {
+		return;
+	}
+	if(delta > 0) {
+		tap_code(keycode0);
+	} else {
+		tap_code(keycode1);
+	}
+}
 
+uint8_t trackMode = 0; // 0 Mousecursor; 1 arrowkeys; 2 scrollwheel
+void pointing_device_task(void) {
     if(!is_keyboard_master())
         return;
-
     report_mouse_t report = pointing_device_get_report();
-
     // clamp deltas from -127 to 127
-    report.x = delta_x < -127 ? 127 : delta_x > 127 ? 127 : delta_x;
-    report.x = -report.x;
-
-    report.y = delta_y < -127 ? 127 : delta_y > 127 ? 127 : delta_y;
-
+	delta_x = delta_x < -127 ? -127 : delta_x > 127 ? 127 : delta_x;
+    delta_y = delta_y < -127 ? -127 : delta_y > 127 ? 127 : delta_y;
+    delta_y = -delta_y;
+	if (trackMode == 0){
+		report.x = delta_x;
+		report.y = delta_y;
+    } else if (trackMode == 1) {
+		tap_tb(delta_x, KC_RIGHT, KC_LEFT);
+		tap_tb(delta_y, KC_UP   , KC_DOWN);
+    } else {
+		report.h = delta_x;
+		report.v = delta_y;
+    }
     // reset deltas
     delta_x = 0;
     delta_y = 0;
-
     pointing_device_set_report(report);
     pointing_device_send();
 }
 
 int16_t convertDeltaToInt(uint8_t high, uint8_t low){
-
     // join bytes into twos compliment
     uint16_t twos_comp = (high << 8) | low;
-
     // convert twos comp to int
     if (twos_comp & 0x8000)
         return -1 * ((twos_comp ^ 0xffff) + 1);
-
     return twos_comp;
 }
 
 ISR(INT2_vect) {
     // called on interrupt 2 when sensed motion
     // copy burst data from the respective registers
-
     adns_begin();
-
     // send adress of the register, with MSBit = 1 to indicate it's a write
     SPI_TransferByte(Motion_Burst & 0x7f);
-
     uint8_t burst_data[pixel_sum];
-
     for (int i = 0; i < pixel_sum; ++i) {
         burst_data[i] = SPI_TransferByte(0);
     }
-
     delta_x += convertDeltaToInt(burst_data[delta_x_h], burst_data[delta_x_l]);
     delta_y += convertDeltaToInt(burst_data[delta_y_h], burst_data[delta_y_l]);
-
     adns_end();
 }
