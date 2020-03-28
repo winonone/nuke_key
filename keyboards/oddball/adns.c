@@ -92,6 +92,8 @@ void adns_end(void){
     PORTB |= (1 << NCS);
 }
 
+
+
 void adns_write(uint8_t reg_addr, uint8_t data){
 
     adns_begin();
@@ -156,7 +158,7 @@ void pointing_device_init(void) {
 
     // reboot
     adns_write(Power_Up_Reset, 0x5a);
-    wait_ms(60);
+    wait_ms(150);
 
     // read registers and discard
     adns_read(Motion);
@@ -240,8 +242,28 @@ void tap_tb(int16_t delta, uint16_t keycode0, uint16_t keycode1) {
 }
 
 uint8_t trackMode = 0; // 0 Mousecursor; 1 arrowkeys; 2 scrollwheel
+bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+  switch (keycode) {
+    case KC_RSFT:
+      if (record->event.pressed) {
+		if (trackMode < 2) {
+			trackMode = trackMode+1;
+		}
+		else {
+			trackMode = 0; 
+		}
+      } else {
+      }
+      break;
+  }
+  return true;
+};
+
+int32_t cum_x = 0;
+int32_t cum_y = 0;
+
 void pointing_device_task(void) {
-    if(!is_keyboard_master())
+    if(!is_keyboard_master() || (delta_x == 0 && delta_y ==0))
         return;
     report_mouse_t report = pointing_device_get_report();
     // clamp deltas from -127 to 127
@@ -252,11 +274,29 @@ void pointing_device_task(void) {
 		report.x = delta_x;
 		report.y = delta_y;
     } else if (trackMode == 1) {
-		tap_tb(delta_x, KC_RIGHT, KC_LEFT);
-		tap_tb(delta_y, KC_UP   , KC_DOWN);
-    } else {
-		report.h = delta_x;
-		report.v = delta_y;
+		cum_x = cum_x + delta_x;
+		cum_y = cum_y + delta_y;
+		if(abs(cum_x) + abs(cum_y) >= 30){
+			if(abs(cum_x) > abs(cum_y)) {
+				tap_tb(delta_x, KC_RIGHT, KC_LEFT);
+			} else {
+				tap_tb(delta_y, KC_DOWN,  KC_UP  );
+			}
+			cum_x = 0;
+			cum_y = 0;
+		}
+	} else {
+		cum_x = cum_x + delta_x;
+		cum_y = cum_y + delta_y;
+		if(abs(cum_x) + abs(cum_y) >= 10){
+			if(abs(cum_x) > abs(cum_y)) {
+				report.h = cum_x/10;
+			} else {
+				report.v = -cum_y/10;
+			}
+			cum_x = 0;
+			cum_y = 0;
+		}
     }
     // reset deltas
     delta_x = 0;
