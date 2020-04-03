@@ -51,3 +51,7 @@
     { R40, R41, R42, R43, KC_NO, KC_NO }, \
     { R50, R51, R52, R53, KC_NO, KC_NO }  \
 }
+
+enum custom_keycodes {
+    KC_INTE = SAFE_RANGE
+};

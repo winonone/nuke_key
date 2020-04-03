@@ -15,3 +15,166 @@
  */
 
 #include "oddball.h"
+#include "pointing_device.h"
+#include "adns.h"
+#define CLAMP_HID(value) value < -127 ? -127 : value > 127 ? 127 : value
+//int16_t CLAMP_HID(int16_t value) {
+//   return value < -127 ? -127 : value > 127 ? 127 : value;
+//}
+
+//static bool scroll_pressed;
+//static int8_t scroll_h;
+//static int8_t scroll_v;
+
+void on_mouse_button(uint8_t mouse_button, bool pressed) {
+    report_mouse_t report = pointing_device_get_report();
+
+    if(pressed)
+        report.buttons |= mouse_button;
+    else
+        report.buttons &= ~mouse_button;
+    pointing_device_set_report(report);
+	pointing_device_send();
+}
+
+void pointing_device_init(void){
+    if(!is_keyboard_master())
+        return;
+
+    adns_init();
+}
+
+int16_t cum_x = 0;
+int16_t cum_y = 0;
+uint8_t carret_trigger = 40;
+
+void tap_tb(int16_t delta, uint16_t keycode0, uint16_t keycode1) {
+	if(delta > 0) {
+		tap_code(keycode0);
+	} else if(delta < 0) {
+		tap_code(keycode1);
+	}
+}
+
+int16_t clamped_x;
+int16_t clamped_y;
+bool integrationMode = false;
+int16_t cumi_x = 0;
+int16_t cumi_y = 0;
+uint8_t trackMode = 0; // 0 Mousecursor; 1 arrowkeys; 2 scrollwheel
+
+void pointing_device_task(void){
+    if(!is_keyboard_master() || (timer_read32() > motion_time && !integrationMode))
+        return;
+
+    report_mouse_t mouse_report = pointing_device_get_report();
+    report_adns_t adns_report = adns_get_report();
+    adns_clear_report();
+
+	if (integrationMode) {
+		cumi_x = cumi_x + adns_report.x;
+		cumi_y = cumi_y + adns_report.y;
+		clamped_x = CLAMP_HID(cumi_x / 18);
+		clamped_y = CLAMP_HID(cumi_y / 18);
+	} else {
+		clamped_x = CLAMP_HID(adns_report.x);
+		clamped_y = CLAMP_HID(adns_report.y);
+	}
+
+    if(trackMode == 2) {//scroll
+        // accumulate scroll
+		cum_x = CLAMP_HID(cum_x + clamped_x);
+		cum_y = CLAMP_HID(cum_y + clamped_y);
+		uint8_t scroll_trigger = 7;
+		if(abs(cum_x) + abs(cum_y) >= scroll_trigger){
+			if(abs(cum_x) > abs(cum_y)) {
+				mouse_report.h = cum_x/scroll_trigger;
+			} else {
+				mouse_report.v = cum_y/scroll_trigger;
+			}
+			cum_x = 0;
+			cum_y = 0;
+		}
+    }
+	else if (trackMode == 0) { //cursor
+        mouse_report.x = clamped_x;
+        mouse_report.y = -clamped_y;
+    } else { //carret
+		cum_x = CLAMP_HID(cum_x + clamped_x);
+		cum_y = CLAMP_HID(cum_y + clamped_y);
+		if(abs(cum_x) + abs(cum_y) >= carret_trigger){
+			if(abs(cum_x) > abs(cum_y)) {
+				tap_tb(cum_x, KC_RIGHT, KC_LEFT);
+			} else {
+				tap_tb(cum_y,  KC_UP, KC_DOWN  );
+			}
+			cum_x = 0;
+			cum_y = 0;
+		}
+	}
+
+    pointing_device_set_report(mouse_report);
+    pointing_device_send();
+}
+
+bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
+    // handle mouse drag and scroll
+    switch (keycode) {
+		case KC_LCTL:
+    	  if (record->event.pressed) {
+			trackMode = 0; //cursor
+			register_code(KC_LCTL);
+		  } else {
+			unregister_code(KC_LCTL);
+		  }
+  		  return false;
+    	case KC_LSFT:
+    	  if (record->event.pressed) {
+			trackMode = 1; //carret
+			register_code(KC_LSFT);
+		  } else {
+			unregister_code(KC_LSFT);
+		  }
+  		  return false;
+    	case KC_LALT:
+    	  if (record->event.pressed) {
+			trackMode = 2; //scroll
+			register_code(KC_LALT);
+		  } else {
+			unregister_code(KC_LALT);
+		  }
+  		  return false;
+    	case KC_INTE:
+    	  if (record->event.pressed) {
+			cumi_x = 0;
+			cumi_y = 0;
+			integrationMode = true;
+		  } else {
+			integrationMode = false;
+		  }
+  		  return false;
+
+        case KC_BTN1:
+            on_mouse_button(MOUSE_BTN1, record->event.pressed);
+            return false;
+
+        case KC_BTN2:
+            on_mouse_button(MOUSE_BTN2, record->event.pressed);
+            return false;
+
+        case KC_BTN3:
+            on_mouse_button(MOUSE_BTN3, record->event.pressed);
+            return false;
+
+        case KC_BTN4:
+            on_mouse_button(MOUSE_BTN4, record->event.pressed);
+            return false;
+
+        case KC_BTN5:
+            on_mouse_button(MOUSE_BTN5, record->event.pressed);
+            return false;
+
+		default:
+    	  return true;
+  }
+}

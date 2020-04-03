@@ -21,14 +21,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 /* USB Device descriptor parameter */
 #define VENDOR_ID 0xFEED
-#define PRODUCT_ID 0xCA49
+#define PRODUCT_ID 0x3060
 #define DEVICE_VER 0x0001
-#define MANUFACTURER Alexander Tulloh
+#define MANUFACTURER   tshort
 #define PRODUCT Oddball
 #define DESCRIPTION A ballin keyboard
 
 /* key matrix size */
-#define MATRIX_ROWS 8
+#define MATRIX_ROWS 12
 #define MATRIX_COLS 6
 
 /*
@@ -41,9 +41,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *                  ROW2COL = ROW = Anode (+), COL = Cathode (-, marked on diode)
  *
  */
-#define MATRIX_ROW_PINS { F6, B5, B6, F7 }
+
+//right
+#define MATRIX_ROW_PINS { F6, B5, B6, F7, B7, D4 }
 #define MATRIX_COL_PINS { D6, D7, B4, D3, C6, C7 }
-#define UNUSED_PINS { B7, D4, D5, E6, F0, F1, F4, F5 }
+#define UNUSED_PINS { D5, E6, F0, F1, F4, F5 }
+
+//left
+//#define MATRIX_COL_PINS { D4, C6, D7, E6, B4, B5 }
+//#define MATRIX_ROW_PINS { F6, F7, B1, B3, B2, B6 }
 
 /* COL2ROW, ROW2COL*/
 #define DIODE_DIRECTION COL2ROW
@@ -51,7 +57,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 /*
  * Split Keyboard specific options, make sure you have 'SPLIT_KEYBOARD = yes' in your rules.mk, and define SOFT_SERIAL_PIN.
  */
-// #define SOFT_SERIAL_PIN D0  // or D1, D2, D3, E6
+//#define SOFT_SERIAL_PIN D0  // or D1, D2, D3, E6
 #define USE_I2C
 #define SPLIT_USB_DETECT
 #define MASTER_RIGHT
@@ -253,3 +259,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 /* Bootmagic Lite key configuration */
 // #define BOOTMAGIC_LITE_ROW 0
 // #define BOOTMAGIC_LITE_COLUMN 0
+
+//#define MOUSEKEY_INTERVAL 250
+//#define MOUSEKEY_DELAY 0
+//#define USB_POLLING_INTERVAL_MS 3
