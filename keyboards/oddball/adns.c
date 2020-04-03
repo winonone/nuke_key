@@ -1,10 +1,9 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include "quantum.h"
-#include "pointing_device.h"
 #include "adns9800_srom_A4.h"
 #include "../../lib/lufa/LUFA/Drivers/Peripheral/SPI.h"
-#include "timer.h"
+#include "adns.h"
 
 // registers
 #define Product_ID  0x00
@@ -81,9 +80,7 @@ enum motion_burst_property{
     end_data
 };
 
-// used to track the motion delta between updates
-volatile int8_t delta_x;
-volatile int8_t delta_y;
+static report_adns_t report;
 
 void adns_begin(void){
     PORTB &= ~ (1 << NCS);
@@ -118,9 +115,7 @@ uint8_t adns_read(uint8_t reg_addr){
     return data;
 }
 
-void pointing_device_init(void) {
-    if(!is_keyboard_master())
-        return;
+void adns_init(void) {
     // interrupt 2
     EICRA &= ~(1 << 4);
     EICRA |= (1 << 5);
@@ -179,87 +174,7 @@ void pointing_device_init(void) {
     adns_write(Config1, 0x04);
     adns_end();
     wait_ms(10);
-
-//    // enable laser(bit 0 = 0b), in normal mode (bits 3,2,1 = 000b)
-//    // reading the actual value of the register is important because the real
-//    // default value is different from what is said in the datasheet, and if you
-//    // change the reserved bytes (like by writing 0x00...) it would not work.
-//    uint8_t laser_ctrl0 = adns_read(REG_LASER_CTRL0);
-//    adns_write(REG_LASER_CTRL0, laser_ctrl0 & 0xf0);
-
-    //wait_ms(1);
-
-    //// set the configuration_I register to set the CPI
-    //// 0x01 = 50, minimum
-    //// 0x44 = 3400, default
-    //// 0x8e = 7100
-    //// 0xA4 = 8200, maximum
-    //adns_write(Config1, 0x04);
-
-    //wait_ms(100);
 }
-
-#include "pointing_device.h"
-
-void on_mouse_button(uint8_t mouse_button, bool pressed) {
-    report_mouse_t report = pointing_device_get_report();
-    if(pressed)
-        report.buttons |= mouse_button;
-    else
-        report.buttons &= ~mouse_button;
-    pointing_device_set_report(report);
-}
-
-void tap_tb(int16_t delta, uint16_t keycode0, uint16_t keycode1) {
-	if(delta == 0) {
-		return;
-	}
-	if(delta > 0) {
-		tap_code(keycode0);
-	} else {
-		tap_code(keycode1);
-	}
-}
-
-uint8_t trackMode = 0; // 0 Mousecursor; 1 arrowkeys; 2 scrollwheel
-bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-  switch (keycode) {
-    case KC_RSFT:
-      if (record->event.pressed) {
-		if (trackMode < 2) {
-			trackMode = trackMode+1;
-		}
-		else {
-			trackMode = 0; 
-		}
-      } 
-  	  break;
-    case KC_BTN1:
-      on_mouse_button(MOUSE_BTN1, record->event.pressed);
-      return false;
-    case KC_BTN2:
-      on_mouse_button(MOUSE_BTN2, record->event.pressed);
-      return false;
-    case KC_BTN3:
-      on_mouse_button(MOUSE_BTN3, record->event.pressed);
-      return false;
-    case KC_BTN4:
-      on_mouse_button(MOUSE_BTN4, record->event.pressed);
-      return false;
-    case KC_BTN5:
-      on_mouse_button(MOUSE_BTN5, record->event.pressed);
-      return false;
-    default:
-      return true;
-  }
-  return true;
-}
-
-int32_t cum_x = 0;
-int32_t cum_y = 0;
-
-int8_t xpol = 1;
-int8_t ypol = 1;
 
 int16_t convertDeltaToInt(uint8_t high, uint8_t low){
     // join bytes into twos compliment
@@ -270,66 +185,23 @@ int16_t convertDeltaToInt(uint8_t high, uint8_t low){
     return twos_comp;
 }
 
-static uint16_t cur_time = 0;
-static uint16_t off_time = 0;
-
-void pointing_device_task(void) {
-    if(!is_keyboard_master()) {
-        return;
-	}
-	cur_time = timer_read();
-    if(cur_time > off_time) {
-        return;
-	}
+report_adns_t adns_get_report(void) {
     adns_begin();
-    // send adress of the register, with MSBit = 1 to indicate it's a write
     SPI_TransferByte(Motion_Burst & 0x7f);
     uint8_t burst_data[pixel_sum];
-    for (int i = 0; i < pixel_sum; ++i) {
+    for (int i = 0; i < pixel_sum; ++i)
         burst_data[i] = SPI_TransferByte(0);
-    }
-	delta_x = convertDeltaToInt(burst_data[delta_x_h], burst_data[delta_x_l]);
-    delta_y = convertDeltaToInt(burst_data[delta_y_h], burst_data[delta_y_l]);
+    report.x = convertDeltaToInt(burst_data[delta_x_h], burst_data[delta_x_l]);
+    report.y = convertDeltaToInt(burst_data[delta_y_h], burst_data[delta_y_l]);
     adns_end();
-    if(!is_keyboard_master() || (delta_x == 0 && delta_y ==0))
-        return;
-    report_mouse_t report = pointing_device_get_report();
-    // clamp deltas from -127 to 127
-	delta_x = delta_x < -127 ? -127 : delta_x > 127 ? 127 : delta_x;
-    delta_y = delta_y < -127 ? -127 : delta_y > 127 ? 127 : delta_y;
-    delta_y = -delta_y;
-	if (trackMode == 0){
-		report.x = delta_x;
-		report.y = delta_y;
-    } else if (trackMode == 1) {
-		cum_x = cum_x + delta_x;
-		cum_y = cum_y + delta_y;
-		if(abs(cum_x) + abs(cum_y) >= 30){
-			if(abs(cum_x) > abs(cum_y)) {
-				tap_tb(delta_x, KC_RIGHT, KC_LEFT);
-			} else {
-				tap_tb(delta_y, KC_DOWN,  KC_UP  );
-			}
-			cum_x = 0;
-			cum_y = 0;
-		}
-	} else {
-		cum_x = cum_x + delta_x;
-		cum_y = cum_y + delta_y;
-		if(abs(cum_x) + abs(cum_y) >= 5){
-			if(abs(cum_x) > abs(cum_y)) {
-				report.h = cum_x/5;
-			} else {
-				report.v = -cum_y/5;
-			}
-			cum_x = 0;
-			cum_y = 0;
-		}
-    }
-    pointing_device_set_report(report);
-    pointing_device_send();
+    return report;
+}
+
+void adns_clear_report(void) {
+    report.x = 0;
+    report.y = 0;
 }
 
 ISR(INT2_vect) {
-	off_time = timer_read() + 1000;
+    motion_time = timer_read32() + 500;
 }
