@@ -16,11 +16,12 @@
 
 #include "oddball.h"
 #include "pointing_device.h"
-#include "adns.h"
+#include "./pmw3360/pmw3360.h"
+#define SCROLL_DIVIDER 12
+#define CPI_1 2000
+#define CPI_2 4000
+#define CPI_3 8000
 #define CLAMP_HID(value) value < -127 ? -127 : value > 127 ? 127 : value
-//int16_t CLAMP_HID(int16_t value) {
-//   return value < -127 ? -127 : value > 127 ? 127 : value;
-//}
 
 //static bool scroll_pressed;
 //static int8_t scroll_h;
@@ -37,11 +38,35 @@ void on_mouse_button(uint8_t mouse_button, bool pressed) {
 	pointing_device_send();
 }
 
+void on_cpi_button(int16_t cpi) {
+
+    // read cpi first to prevent unnecessary writes to EEPROM
+    if(pmw_get_config().cpi == cpi)
+        return;
+
+    pmw_set_config((config_pmw_t){ cpi });
+
+    config_oddball_t kb_config;
+    kb_config.cpi = cpi;
+    eeconfig_update_kb(kb_config.raw);
+}
+
 void pointing_device_init(void){
     if(!is_keyboard_master())
         return;
 
-    adns_init();
+    pmw_init();
+    // read config from EEPROM and update if needed
+
+    config_oddball_t kb_config;
+    kb_config.raw = eeconfig_read_kb();
+
+    if(!kb_config.cpi) {
+        kb_config.cpi = CPI_2;
+        eeconfig_update_kb(kb_config.raw);
+    }
+
+    pmw_set_config((config_pmw_t){ kb_config.cpi });
 }
 
 int16_t cum_x = 0;
@@ -68,17 +93,16 @@ void pointing_device_task(void){
         return;
 
     report_mouse_t mouse_report = pointing_device_get_report();
-    report_adns_t adns_report = adns_get_report();
-    adns_clear_report();
+    report_pmw_t pmw_report = pmw_get_report();
 
 	if (integrationMode) {
-		cumi_x = cumi_x + adns_report.x;
-		cumi_y = cumi_y + adns_report.y;
+		cumi_x = cumi_x + pmw_report.x;
+		cumi_y = cumi_y + pmw_report.y;
 		clamped_x = CLAMP_HID(cumi_x / 18);
 		clamped_y = CLAMP_HID(cumi_y / 18);
 	} else {
-		clamped_x = CLAMP_HID(adns_report.x);
-		clamped_y = CLAMP_HID(adns_report.y);
+		clamped_x = CLAMP_HID(pmw_report.x);
+		clamped_y = CLAMP_HID(pmw_report.y);
 	}
 
     if(trackMode == 2) {//scroll
@@ -97,8 +121,8 @@ void pointing_device_task(void){
 		}
     }
 	else if (trackMode == 0) { //cursor
-        mouse_report.x = clamped_x;
-        mouse_report.y = -clamped_y;
+        mouse_report.x = (int)(clamped_x * 0.7);
+        mouse_report.y = (int)(-clamped_y * 0.7);
     } else { //carret
 		cum_x = CLAMP_HID(cum_x + clamped_x);
 		cum_y = CLAMP_HID(cum_y + clamped_y);
@@ -118,6 +142,9 @@ void pointing_device_task(void){
 }
 
 bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
+    if(!process_record_user(keycode, record))
+        return false;
+
     // handle mouse drag and scroll
     switch (keycode) {
 		case KC_LCTL:
@@ -177,4 +204,10 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
 		default:
     	  return true;
   }
+}
+
+ISR(INT2_vect) {
+    motion_time = timer_read32() + 50;
+    //mouse_report = pointing_device_get_report();
+    //pmw_report = pmw_get_report();
 }

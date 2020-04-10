@@ -39,4 +39,4 @@ SPLIT_KEYBOARD = yes
 # Add trackball support
 POINTING_DEVICE_ENABLE = yes
 
-SRC += adns.c
+SRC += pmw3360/pmw3360.c

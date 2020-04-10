@@ -1,9 +1,7 @@
-#include <avr/io.h>
-#include <avr/interrupt.h>
 #include "quantum.h"
-#include "adns9800_srom_A4.h"
+#include "PMW3360_SROM_0x04.h"
 #include "../../lib/lufa/LUFA/Drivers/Peripheral/SPI.h"
-#include "adns.h"
+#include "pmw3360.h"
 
 // registers
 #define Product_ID  0x00
@@ -57,104 +55,84 @@
 #define LiftCutoff_Tune2  0x65
 
 // pins
-#define NCS 0
+#define NCS B0
 
 extern const uint16_t firmware_length;
 extern const uint8_t firmware_data[];
 
-enum motion_burst_property{
-    motion = 0,
-    observation,
-    delta_x_l,
-    delta_x_h,
-    delta_y_l,
-    delta_y_h,
-    squal,
-    pixel_sum,
-    maximum_pixel,
-    minimum_pixel,
-    shutter_upper,
-    shutter_lower,
-    frame_period_upper,
-    frame_period_lower,
-    end_data
-};
-
-static report_adns_t report;
-
-void adns_begin(void){
-    PORTB &= ~ (1 << NCS);
+void pmw_begin(void){
+    writePinLow(NCS);
 }
 
-void adns_end(void){
-    PORTB |= (1 << NCS);
+void pmw_end(void){
+    writePinHigh(NCS);
 }
 
-void adns_write(uint8_t reg_addr, uint8_t data){
-    adns_begin();
+void pmw_write(uint8_t reg_addr, uint8_t data){
+    pmw_begin();
     //send address of the register, with MSBit = 1 to indicate it's a write
     SPI_TransferByte(reg_addr | 0x80 );
     SPI_TransferByte(data);
     // tSCLK-NCS for write operation
     wait_us(20);
-    adns_end();
+    pmw_end();
     // tSWW/tSWR (=120us) minus tSCLK-NCS. Could be shortened, but is looks like a safe lower bound
     wait_us(100);
 }
 
-uint8_t adns_read(uint8_t reg_addr){
-    adns_begin();
+uint8_t pmw_read(uint8_t reg_addr){
+    pmw_begin();
     // send adress of the register, with MSBit = 0 to indicate it's a read
     SPI_TransferByte(reg_addr & 0x7f );
     uint8_t data = SPI_TransferByte(0);
     // tSCLK-NCS for read operation is 120ns
     wait_us(1);
-    adns_end();
+    pmw_end();
     //  tSRW/tSRR (=20us) minus tSCLK-NCS
     wait_us(19);
     return data;
 }
 
-void adns_init(void) {
+void pmw_init(void) {
     // interrupt 2
     EICRA &= ~(1 << 4);
     EICRA |= (1 << 5);
     EIMSK |= (1<<INT2);
-    // mode 3
-    SPI_Init(
-        SPI_SPEED_FCPU_DIV_128 |
-        SPI_ORDER_MSB_FIRST |
-        SPI_SCK_LEAD_FALLING |
-        SPI_SAMPLE_TRAILING |
-        SPI_MODE_MASTER);
-    // set B0 output
-    DDRB |= (1 << 0);
+
+	SPI_Init(
+			SPI_SPEED_FCPU_DIV_4 | 
+			SPI_ORDER_MSB_FIRST | 
+			SPI_SCK_LEAD_FALLING | 
+			SPI_SAMPLE_TRAILING | 
+			SPI_MODE_MASTER);
+	
+    setPinOutput(NCS);
     // reset serial port
-    adns_end();
-    adns_begin();
-    adns_end();
+    pmw_end();
+    pmw_begin();
+    pmw_end();
     // reboot
-    adns_write(Power_Up_Reset, 0x5a);
+    pmw_write(Power_Up_Reset, 0x5a);
     wait_ms(150);
     // read registers and discard
-    adns_read(Motion);
-    adns_read(Delta_X_L);
-    adns_read(Delta_X_H);
-    adns_read(Delta_Y_L);
-    adns_read(Delta_Y_H);
+    pmw_read(Motion);
+    pmw_read(Delta_X_L);
+    pmw_read(Delta_X_H);
+    pmw_read(Delta_Y_L);
+    pmw_read(Delta_Y_H);
     // upload firmware
     // set the configuration_IV register in 3k firmware mode
     // bit 1 = 1 for 3k mode, other bits are reserved
-    adns_write(Config2, 0x20);
+    pmw_write(Config2, 0x20);
     // write 0x1d in SROM_enable reg for initializing
-    adns_write(SROM_Enable, 0x1d);
+    pmw_write(SROM_Enable, 0x1d);
     // wait for more than one frame period
     // assume that the frame rate is as low as 100fps... even if it should never be that low
     wait_ms(10);
     // write 0x18 to SROM_enable to start SROM download
-    adns_write(SROM_Enable, 0x18);
+    pmw_write(SROM_Enable, 0x18);
     // write the SROM file (=firmware data)
-    adns_begin();
+    pmw_begin();
     // write burst destination adress
     SPI_TransferByte(SROM_Load_Burst | 0x80);
     wait_us(15);
@@ -165,43 +143,68 @@ void adns_init(void) {
         SPI_TransferByte(c);
         wait_us(15);
     }
-    //Read the SROM_ID register to verify the ID before any other register reads or writes.
-    adns_read(SROM_ID);
-    //Write 0x00 to Config2 register for wired mouse or 0x20 for wireless mouse design.
-    adns_write(Config2, 0x00);
-    // set initial CPI resolution
-    ////adns_write(Config1, 0x15); // was this
-    adns_write(Config1, 0x04);
-    adns_end();
+    // //Read the SROM_ID register to verify the ID before any other register reads or writes.
+    // pmw_read(SROM_ID);
+    // //Write 0x00 to Config2 register for wired mouse or 0x20 for wireless mouse design.
+    // pmw_write(Config2, 0x00);
+    // // set initial CPI resolution
+    // ////pmw_write(Config1, 0x15); // was this
+    pmw_write(Config1, 0x04);
+    pmw_end();
     wait_ms(10);
 }
 
+config_pmw_t pmw_get_config(void) {
+    uint8_t config_1 = pmw_read(Config1);
+    return (config_pmw_t){ (config_1 & 0xFF) * 200 };
+}
+
+void pmw_set_config(config_pmw_t config) {
+    uint8_t config_1 = (config.cpi / 200) & 0xFF;
+    pmw_write(Config1, config_1);
+    wait_ms(100);
+}
+
 int16_t convertDeltaToInt(uint8_t high, uint8_t low){
+
     // join bytes into twos compliment
     uint16_t twos_comp = (high << 8) | low;
+
     // convert twos comp to int
     if (twos_comp & 0x8000)
-        return -1 * ((twos_comp ^ 0xffff) + 1);
+        return -1 * (~twos_comp + 1);
+
     return twos_comp;
 }
 
-report_adns_t adns_get_report(void) {
-    adns_begin();
+report_pmw_t pmw_get_report(void) {
+
+    report_pmw_t report = {0, 0};
+
+    pmw_begin();
+
+    // start burst mode
     SPI_TransferByte(Motion_Burst & 0x7f);
-    uint8_t burst_data[pixel_sum];
-    for (int i = 0; i < pixel_sum; ++i)
-        burst_data[i] = SPI_TransferByte(0);
-    report.x = convertDeltaToInt(burst_data[delta_x_h], burst_data[delta_x_l]);
-    report.y = convertDeltaToInt(burst_data[delta_y_h], burst_data[delta_y_l]);
-    adns_end();
+
+    // motion register
+    uint8_t motion = SPI_TransferByte(0);
+
+    if(motion & 0x80) {
+
+        // clear observation register
+        SPI_TransferByte(0);
+
+        // delta registers
+        uint8_t delta_x_l = SPI_TransferByte(0);
+        uint8_t delta_x_h = SPI_TransferByte(0);
+        uint8_t delta_y_l = SPI_TransferByte(0);
+        uint8_t delta_y_h = SPI_TransferByte(0);
+
+        report.x = convertDeltaToInt(delta_x_h, delta_x_l);
+        report.y = convertDeltaToInt(delta_y_h, delta_y_l);
+    }
+
+    pmw_end();
+
     return report;
-}
-
-void adns_clear_report(void) {
-    report.x = 0;
-    report.y = 0;
-}
-
-ISR(INT2_vect) {
-    motion_time = timer_read32() + 500;
 }
