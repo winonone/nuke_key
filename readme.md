@@ -2,6 +2,8 @@
 
 This is my fork to update my keyboards/handwired/dactyl-manuform-r-track
 
+I use it only for my right half yet. The for the left one i use the original dactyl-manuform with i2c.
+
 # Quantum Mechanical Keyboard Firmware
 
 [![Current Version](https://img.shields.io/github/tag/qmk/qmk_firmware.svg)](https://github.com/qmk/qmk_firmware/tags)
