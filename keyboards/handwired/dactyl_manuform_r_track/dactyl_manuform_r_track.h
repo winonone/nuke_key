@@ -1,4 +1,4 @@
-/* Copyright 2020 Alexander Tulloh
+/* Copyright 2020 Qurn
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,20 +51,3 @@
     { R40, R41, R42, R43, KC_NO, KC_NO }, \
     { R50, R51, R52, R53, KC_NO, KC_NO }  \
 }
-
-enum custom_keycodes {
-    KC_INTE = SAFE_RANGE,
-    KC_CURS,
-    KC_SCRL,
-    KC_CHRT,
-    KC_CPI_1,
-    KC_CPI_2,
-    KC_CPI_3
-};
-
-typedef union {
-  uint32_t raw;
-  struct {
-    uint16_t cpi;
-  };
-} config_oddball_t;

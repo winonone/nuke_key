@@ -71,7 +71,11 @@ void pointing_device_init(void){
 
 int16_t cum_x = 0;
 int16_t cum_y = 0;
-uint8_t carret_trigger = 40;
+// Triggers help to move only horizontal or vertical. When accumulated distance triggeres, only move one discrete value in direction with bigger delta.
+uint8_t carret_trigger = 80;
+uint8_t scroll_trigger = 32;
+float cursor_multiplier = 0.4; // adjust cursor speed
+uint8_t integration_divisor = 50; // slow down every mode in integration mode
 
 void tap_tb(int16_t delta, uint16_t keycode0, uint16_t keycode1) {
 	if(delta > 0) {
@@ -86,7 +90,7 @@ int16_t clamped_y;
 bool integrationMode = false;
 int16_t cumi_x = 0;
 int16_t cumi_y = 0;
-uint8_t trackMode = 0; // 0 Mousecursor; 1 arrowkeys; 2 scrollwheel
+uint8_t trackMode = 0; // 0 Mousecursor; 1 arrowkeys/carret; 2 scrollwheel
 
 void pointing_device_task(void){
     if(!is_keyboard_master() || (timer_read32() > motion_time && !integrationMode))
@@ -96,10 +100,10 @@ void pointing_device_task(void){
     report_pmw_t pmw_report = pmw_get_report();
 
 	if (integrationMode) {
-		cumi_x = cumi_x + pmw_report.x;
-		cumi_y = cumi_y + pmw_report.y;
-		clamped_x = CLAMP_HID(cumi_x / 18);
-		clamped_y = CLAMP_HID(cumi_y / 18);
+		cumi_x += pmw_report.x;
+		cumi_y += pmw_report.y;
+		clamped_x = CLAMP_HID(cumi_x / integration_divisor);
+		clamped_y = CLAMP_HID(cumi_y / integration_divisor);
 	} else {
 		clamped_x = CLAMP_HID(pmw_report.x);
 		clamped_y = CLAMP_HID(pmw_report.y);
@@ -109,7 +113,6 @@ void pointing_device_task(void){
         // accumulate scroll
 		cum_x = CLAMP_HID(cum_x + clamped_x);
 		cum_y = CLAMP_HID(cum_y + clamped_y);
-		uint8_t scroll_trigger = 7;
 		if(abs(cum_x) + abs(cum_y) >= scroll_trigger){
 			if(abs(cum_x) > abs(cum_y)) {
 				mouse_report.h = cum_x/scroll_trigger;
@@ -121,8 +124,8 @@ void pointing_device_task(void){
 		}
     }
 	else if (trackMode == 0) { //cursor
-        mouse_report.x = (int)(clamped_x * 0.7);
-        mouse_report.y = (int)(-clamped_y * 0.7);
+        mouse_report.x = (int)(clamped_x * cursor_multiplier);
+        mouse_report.y = (int)(-clamped_y * cursor_multiplier);
     } else { //carret
 		cum_x = CLAMP_HID(cum_x + clamped_x);
 		cum_y = CLAMP_HID(cum_y + clamped_y);
@@ -147,30 +150,28 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
 
     // handle mouse drag and scroll
     switch (keycode) {
-		case KC_LCTL:
+
+    	case KC_CURS:
     	  if (record->event.pressed) {
-			trackMode = 0; //cursor
-			register_code(KC_LCTL);
+			  trackMode = 0;
 		  } else {
-			unregister_code(KC_LCTL);
 		  }
   		  return false;
-    	case KC_LSFT:
+
+    	//case KC_CHRT:
+    	//  if (record->event.pressed) {
+		//	  trackMode = 1;
+		//  } else {
+		//  }
+  		//  return false;
+
+    	case KC_SCRL:
     	  if (record->event.pressed) {
-			trackMode = 1; //carret
-			register_code(KC_LSFT);
+			  trackMode = 2;
 		  } else {
-			unregister_code(KC_LSFT);
 		  }
   		  return false;
-    	case KC_LALT:
-    	  if (record->event.pressed) {
-			trackMode = 2; //scroll
-			register_code(KC_LALT);
-		  } else {
-			unregister_code(KC_LALT);
-		  }
-  		  return false;
+
     	case KC_INTE:
     	  if (record->event.pressed) {
 			cumi_x = 0;
