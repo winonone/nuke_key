@@ -57,6 +57,8 @@
 // pins
 #define NCS B0
 
+#define CLAMP_CPI(value) value < 0 ? 0 : value > 0x77 ? 0x77 : value
+
 extern const uint16_t firmware_length;
 extern const uint8_t firmware_data[];
 
@@ -151,7 +153,7 @@ void pmw_init(void) {
     // pmw_write(Config2, 0x00);
     // // set initial CPI resolution
     // ////pmw_write(Config1, 0x15); // was this
-    pmw_write(Config1, 0x04);
+    pmw_write(Config1, 0x77);
     pmw_end();
     wait_ms(10);
 }
@@ -162,7 +164,7 @@ config_pmw_t pmw_get_config(void) {
 }
 
 void pmw_set_config(config_pmw_t config) {
-    uint8_t config_1 = (config.cpi / 200) & 0xFF;
+    uint8_t config_1 = CLAMP_CPI((config.cpi/100)-1);
     pmw_write(Config1, config_1);
     wait_ms(100);
 }

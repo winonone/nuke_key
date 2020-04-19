@@ -26,7 +26,7 @@
 #include "../../pmw3360/pmw3360.h"
 #define SCROLL_DIVIDER 12
 #define CPI_1 2000
-#define CPI_2 4000
+#define CPI_2 12000
 #define CPI_3 8000
 #define CLAMP_HID(value) value < -127 ? -127 : value > 127 ? 127 : value
 
@@ -111,7 +111,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   [_RAISE] = LAYOUT_5x6(
        _______,KC_LEFT   , KC_U     , KC_DOWN , KC_RGHT,KC_LPRN,                  KC_RPRN, KC_MPRV      , KC_MPLY      , KC_MNXT  , _______   , KC_VOLU,
        _______, _______  , _______  , _______ , _______,_______,                  KC_TILD, KC_MS_BTN3   , RALT(KC_Y)   ,_______   , _______   , KC_VOLD,
-       _______,KC_LPRN   ,KC_RPRN   , KC_LBRC , KC_RBRC,KC_LBRC,                  KC_RBRC, LSFT(KC_LBRC), LSFT(KC_RBRC),RALT(KC_P), RALT(KC_P), KC_MS_BTN3,
+       _______,KC_LPRN   ,KC_RPRN   , KC_LBRC , KC_RBRC,KC_LBRC,                  KC_RBRC, LSFT(KC_LBRC), LSFT(KC_RBRC),LSFT(KC_COMM), LSFT(KC_DOT), KC_MS_BTN3,
        KC_F12 ,KC_F1     , KC_F2    , KC_F3   , KC_F4  , KC_F5 ,                  KC_F6  , KC_F7        , KC_F8        , KC_F9    , KC_F10    , KC_F11 ,
                                     _______,_______,                                   _______,_______,
                                                _______,_______,            _______,_______,
@@ -248,7 +248,6 @@ void on_mouse_button(uint8_t mouse_button, bool pressed) {
 }
 
 void on_cpi_button(int16_t cpi) {
-
     // read cpi first to prevent unnecessary writes to EEPROM
     if(pmw_get_config().cpi == cpi)
         return;
@@ -275,6 +274,10 @@ void pointing_device_init(void){
         eeconfig_update_kb(kb_config.raw);
     }
 
+	//char snum[5];
+	//itoa(distanceFromOrigin, snum, 10);
+	//SEND_STRING(" init ");
+	//send_string(snum);
     pmw_set_config((config_pmw_t){ kb_config.cpi });
 }
 
@@ -282,10 +285,10 @@ int16_t cum_x = 0;
 int16_t cum_y = 0;
 
 // Triggers help to move only horizontal or vertical. When accumulated distance triggeres, only move one discrete value in direction with bigger delta.
-uint8_t carret_trigger = 80;
-uint8_t scroll_trigger = 32;
+uint8_t carret_trigger = 120; // higher means slower
+uint8_t scroll_trigger = 60;
 
-float cursor_multiplier = 0.4; // adjust cursor speed
+float cursor_multiplier = 0.17; // adjust cursor speed
 uint8_t integration_divisor = 50; // slow down every mode in integration mode
 
 void tap_tb(int16_t delta, uint16_t keycode0, uint16_t keycode1) {
@@ -337,7 +340,7 @@ void pointing_device_task(void){
 		}
     }
 	else if (trackMode == 0) { //cursor
-        mouse_report.x = (int)(clamped_x * cursor_multiplier);
+        mouse_report.x = (int)( clamped_x * cursor_multiplier);
         mouse_report.y = (int)(-clamped_y * cursor_multiplier);
     } else { //carret
 		cum_x = CLAMP_HID(cum_x + clamped_x);
@@ -408,6 +411,18 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
 
         case KC_BTN5:
             on_mouse_button(MOUSE_BTN5, record->event.pressed);
+            return false;
+
+        case KC_CPI_1:
+            on_cpi_button(CPI_1);
+            return false;
+
+        case KC_CPI_2:
+            on_cpi_button(CPI_2);
+            return false;
+
+        case KC_CPI_3:
+            on_cpi_button(CPI_3);
             return false;
 
 		default:
