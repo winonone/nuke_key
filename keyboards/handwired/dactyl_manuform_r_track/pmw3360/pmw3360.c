@@ -86,6 +86,7 @@ uint8_t pmw_read(uint8_t reg_addr){
     pmw_begin();
     // send adress of the register, with MSBit = 0 to indicate it's a read
     SPI_TransferByte(reg_addr & 0x7f );
+    wait_us(100);
     uint8_t data = SPI_TransferByte(0);
     // tSCLK-NCS for read operation is 120ns
     wait_us(1);
@@ -147,10 +148,10 @@ void pmw_init(void) {
         SPI_TransferByte(c);
         wait_us(15);
     }
-    // //Read the SROM_ID register to verify the ID before any other register reads or writes.
-    // pmw_read(SROM_ID);
-    // //Write 0x00 to Config2 register for wired mouse or 0x20 for wireless mouse design.
-    // pmw_write(Config2, 0x00);
+    //Read the SROM_ID register to verify the ID before any other register reads or writes.
+    pmw_read(SROM_ID);
+    //Write 0x00 to Config2 register for wired mouse or 0x20 for wireless mouse design.
+    pmw_write(Config2, 0x00);
     // // set initial CPI resolution
     // ////pmw_write(Config1, 0x15); // was this
     pmw_write(Config1, 0x77);
