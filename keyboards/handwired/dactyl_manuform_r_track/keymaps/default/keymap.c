@@ -25,9 +25,9 @@
 #include "pointing_device.h"
 #include "../../pmw3360/pmw3360.h"
 #define SCROLL_DIVIDER 12
-#define CPI_1 2000
-#define CPI_2 12000
-#define CPI_3 8000
+#define CPI_1 6000
+#define CPI_2 10000
+#define CPI_3 11000
 #define CLAMP_HID(value) value < -127 ? -127 : value > 127 ? 127 : value
 
 // tapdance keycodes
@@ -35,7 +35,9 @@ enum td_keycodes {
   ALT_TM, // 
   SFT_TM, // 
   CTL_TM, // 
-  RAISE_M3 // 
+  GUI_TM, // 
+  RAISE_TM, // 
+  LOWER_TM // 
 };
 
 // define a type containing as many tapdance states as you need
@@ -59,8 +61,10 @@ void sfttm_finished (qk_tap_dance_state_t *state, void *user_data);
 void sfttm_reset (qk_tap_dance_state_t *state, void *user_data);
 void ctltm_finished (qk_tap_dance_state_t *state, void *user_data);
 void ctltm_reset (qk_tap_dance_state_t *state, void *user_data);
-void raisem3_finished (qk_tap_dance_state_t *state, void *user_data);
-void raisem3_reset (qk_tap_dance_state_t *state, void *user_data);
+void raisetm_finished (qk_tap_dance_state_t *state, void *user_data);
+void raisetm_reset (qk_tap_dance_state_t *state, void *user_data);
+void lowertm_finished (qk_tap_dance_state_t *state, void *user_data);
+void lowertm_reset (qk_tap_dance_state_t *state, void *user_data);
 
 enum custom_keycodes {
     KC_INTE = SAFE_RANGE,
@@ -69,6 +73,10 @@ enum custom_keycodes {
     KC_CHRT,
     KC_SCLN_INV,
 	KC_QUOT_NOT_US_INT,
+	KC_BSPC_LCTL,
+	KC_DEL_ALT,
+	KC_ENT_LGUI,
+	KC_SPC_LSFT,
     KC_CPI_1,
     KC_CPI_2,
     KC_CPI_3
@@ -84,47 +92,59 @@ typedef union {
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
-  [_COLEMAK] = LAYOUT_5x6(
-     KC_EQL,  KC_1  , KC_2  , KC_3  , KC_4  , KC_5  ,                        KC_6  , KC_7  , KC_8  , KC_9  , KC_0        ,KC_QUOT_NOT_US_INT,
-	 KC_TAB,  KC_Q  , KC_W  , KC_F  , KC_P  , KC_G  ,                        KC_J  , KC_L  , KC_U  , KC_Y  , KC_SCLN_INV ,KC_MINS,
-     KC_ESC,  KC_A  , KC_R  , KC_S  , KC_T  , KC_D  ,                        KC_H  , KC_N  , KC_E  , KC_I  , KC_O        ,TD(RAISE_M3),
-     KC_TILD, KC_Z  , KC_X  , KC_C  , KC_V  , KC_B  ,                        KC_K  , KC_M  ,KC_COMM, KC_DOT, KC_SLSH     ,KC_BSLASH,
-                       KC_MS_BTN1, KC_MS_BTN2,                                             KC_MS_BTN3, KC_LGUI,
-                                      TD(SFT_TM),  KC_ENT,                   _______,  KC_SPC,
-                                      TD(CTL_TM),  TD(RAISE_M3),             _______,  KC_LGUI,
-                                      TD(ALT_TM),  LOWER,                    KC_BSPC,  KC_DEL
-  ),
+[_COLEMAK] = LAYOUT_5x6(
+//KC_EQL,  KC_1  , KC_2  , KC_3  , KC_4  , KC_5  ,                      KC_6  , KC_7  , KC_8  , KC_9  , KC_0        ,KC_QUOT_NOT_US_INT,
+DF(_COLEMAK),  MO(_RAISE)  , KC_2  , KC_3  , KC_4  , KC_5  ,                      KC_6  , KC_7  , KC_8  , KC_9  , KC_0        ,KC_QUOT_NOT_US_INT,
+KC_TAB,  KC_Q  , KC_W  , KC_F  , KC_P  , KC_G  ,                      KC_J  , KC_L  , KC_U  , KC_Y  , KC_SCLN_INV ,KC_MINS,
+KC_ESC,  KC_A  , KC_R  , KC_S  , KC_T  , KC_D  ,                      KC_H  , KC_N  , KC_E  , KC_I  , KC_O        ,TD(RAISE_TM),
+KC_TILD, KC_Z  , KC_X  , KC_C  , KC_V  , KC_B  ,                      KC_K  , KC_M  ,KC_COMM, KC_DOT, KC_SLSH     ,KC_BSLASH,
+                  KC_MS_BTN1, KC_MS_BTN2,                                       KC_MS_BTN3, KC_LGUI,
+                                 TD(SFT_TM),  TD(RAISE_TM),        _______,  KC_SPC_LSFT,
+                                 TD(CTL_TM),  TD(GUI_TM),          _______,  KC_ENT_LGUI,
+                                 TD(ALT_TM),  TD(LOWER_TM),        KC_BSPC_LCTL, KC_DEL_ALT
+),
 
-  [_LOWER] = LAYOUT_5x6(
+[_LOWER] = LAYOUT_5x6(
 
-     KC_TILD,KC_EXLM   , KC_AT    ,KC_HASH   , KC_DLR ,KC_PERC,                        KC_CIRC, KC_AMPR       , KC_ASTR    , KC_LPRN  , KC_RPRN   , KC_DEL,
-     _______,_______   ,_______   ,_______   ,_______ ,_______,                        _______, _______       , RALT(KC_Y) , _______  , _______   , KC_PLUS,
-     _______,RALT(KC_Q),RALT(KC_S),RALT(KC_S), KC_RBRC,_______,                        _______, LSFT(KC_LBRC) , RALT(KC_5) , _______  , RALT(KC_P), KC_MUTE,
-     _______,KC_HOME   ,KC_PGUP   ,KC_PGDN   , KC_END ,_______,                        _______, _______       , _______    , KC_P6    , KC_MINS   , KC_PIPE,
-                                  _______,_______,                                _______,_______,
-                                             _______,_______,            _______,_______,
-                                             _______,_______,            _______,_______,
-                                             _______,_______,            _______,_______
+KC_TILD,KC_EXLM   , KC_AT     , KC_HASH   , KC_DLR ,KC_PERC,          KC_CIRC, KC_AMPR       , KC_ASTR    , KC_LPRN  , KC_RPRN   , KC_DEL,
+_______,KC_HOME   , KC_PGUP   , KC_PGDN   , KC_END ,_______,          KC_HOME, KC_END        , RALT(KC_Y) , KC_PGUP  , _______   , KC_PLUS,
+_______,RALT(KC_Q),RALT(KC_S) ,RALT(KC_S) , KC_RBRC,_______,          _______, LSFT(KC_LBRC) , RALT(KC_5) , KC_PGDN  , RALT(KC_P), KC_MUTE,
+KC_F12 ,KC_F1     , KC_F2     , KC_F3     , KC_F4  , KC_F5 ,          KC_F6  , KC_F7         , KC_F8      , KC_F9    , KC_F10    , KC_F11 ,
+                              _______,_______,                           _______,_______,
+                                        _______,_______,           _______,_______,
+                                        _______,_______,           _______,_______,
+                                        _______,_______,           _______,_______
+),
 
-  ),
-
-  [_RAISE] = LAYOUT_5x6(
-       _______,KC_LEFT   , KC_U     , KC_DOWN , KC_RGHT,KC_LPRN,                  KC_RPRN, KC_MPRV      , KC_MPLY      , KC_MNXT  , _______   , KC_VOLU,
-       _______, _______  , _______  , _______ , _______,_______,                  KC_TILD, KC_MS_BTN3   , RALT(KC_Y)   ,_______   , _______   , KC_VOLD,
-       _______,KC_LPRN   ,KC_RPRN   , KC_LBRC , KC_RBRC,KC_LBRC,                  KC_RBRC, LSFT(KC_LBRC), LSFT(KC_RBRC),LSFT(KC_COMM), LSFT(KC_DOT), KC_MS_BTN3,
-       KC_F12 ,KC_F1     , KC_F2    , KC_F3   , KC_F4  , KC_F5 ,                  KC_F6  , KC_F7        , KC_F8        , KC_F9    , KC_F10    , KC_F11 ,
-                                    _______,_______,                                   _______,_______,
-                                               _______,_______,            _______,_______,
-                                               _______,_______,            _______,_______,
-                                               _______,_______,            _______,_______
-  ),
+[_RAISE] = LAYOUT_5x6(
+_______,KC_LEFT   , KC_U     , KC_DOWN , KC_RGHT,KC_LPRN,            KC_RPRN, KC_MPRV      , KC_MPLY      , KC_MNXT  , _______   , KC_VOLU,
+KC_EQL,  KC_1     , KC_2     , KC_3    , KC_4   , KC_5  ,            KC_6   , KC_7         , KC_8         , KC_9     , KC_0      ,KC_QUOT_NOT_US_INT,
+_______,KC_LPRN   , KC_RPRN  , KC_LBRC , KC_RBRC,KC_LBRC,            KC_RBRC, LSFT(KC_LBRC),LSFT(KC_RBRC) ,LSFT(KC_COMM),LSFT(KC_DOT),KC_MS_BTN3,
+KC_TILD,KC_EXLM   , KC_AT     ,KC_HASH , KC_DLR ,KC_PERC,            KC_CIRC, KC_AMPR      , KC_ASTR      , KC_LPRN  , KC_RPRN   , KC_DEL,
+                             _______,_______,                              _______,_______,
+                                        _______,_______,           _______,_______,
+                                        _______,_______,           _______,_______,
+                                        _______,_______,           _______,_______
+),
 };
 
-uint8_t trackMode = 0; // 0 Mousecursor; 1 arrowkeys/carret; 2 scrollwheel
+uint8_t trackMode = 0; // 0 Mousecursor; 1 arrowkeys/carret; 2 scrollwheel; 3 sound/brightness
+uint8_t prev_trackMode = 0;
 bool integrationMode = false;
 int16_t cumi_x = 0;
 int16_t cumi_y = 0;
+//identify keycombinations
 bool is_sft_active = false;
+bool is_ctl_active = false;
+bool is_alt_active = false;
+bool is_gui_active = false;
+bool is_low_active = false;
+bool is_rai_active = false;
+
+bool is_spc_active = false;
+bool is_del_active = false;
+bool is_ent_active = false;
+bool is_bsp_active = false;
 
 // determine the tapdance state to return
 int cur_dance (qk_tap_dance_state_t *state) {
@@ -136,19 +156,15 @@ int cur_dance (qk_tap_dance_state_t *state) {
   else { return 2; } // any number higher than the maximum state value you return above
 }
 
-// handle the possible states for each tapdance keycode you define:
 void alttm_finished (qk_tap_dance_state_t *state, void *user_data) {
   td_state = cur_dance(state);
   switch (td_state) {
     case SINGLE_TAP:
-	  if (trackMode == 2) {
-		//tap_mods(MOD_BIT(KC_LALT));
-	  } else {
-		trackMode = 2;
-	  }
+	  trackMode = 2;
       break;
     case SINGLE_HOLD:
       register_mods(MOD_BIT(KC_LALT));
+	  is_alt_active = true;
   }
 }
 void alttm_reset (qk_tap_dance_state_t *state, void *user_data) {
@@ -157,17 +173,14 @@ void alttm_reset (qk_tap_dance_state_t *state, void *user_data) {
       break;
     case SINGLE_HOLD:
       unregister_mods(MOD_BIT(KC_LALT));
+	  is_alt_active = false;
   }
 }
 void sfttm_finished (qk_tap_dance_state_t *state, void *user_data) {
   td_state = cur_dance(state);
   switch (td_state) {
     case SINGLE_TAP:
-	  if (trackMode == 1) {
-		//tap_mods(MOD_BIT(KC_LSFT));
-	  } else {
-		trackMode = 1;
-	  }
+	  trackMode = 1;
       break;
     case SINGLE_HOLD:
       register_mods(MOD_BIT(KC_LSFT));
@@ -187,14 +200,11 @@ void ctltm_finished (qk_tap_dance_state_t *state, void *user_data) {
   td_state = cur_dance(state);
   switch (td_state) {
     case SINGLE_TAP:
-	  if (trackMode == 0) {
-		//tap_mods(MOD_BIT(KC_LSFT));
-	  } else {
-		trackMode = 0;
-	  }
+	  trackMode = 0;
       break;
     case SINGLE_HOLD:
       register_mods(MOD_BIT(KC_LCTL));
+	  is_ctl_active = true;
   }
 }
 void ctltm_reset (qk_tap_dance_state_t *state, void *user_data) {
@@ -203,37 +213,77 @@ void ctltm_reset (qk_tap_dance_state_t *state, void *user_data) {
       break;
     case SINGLE_HOLD:
       unregister_mods(MOD_BIT(KC_LCTL));
+	  is_ctl_active = false;
   }
 }
+void guitm_finished (qk_tap_dance_state_t *state, void *user_data) {
+  td_state = cur_dance(state);
+  register_mods(MOD_BIT(KC_LGUI));
+  is_gui_active = true;
+}
+void guitm_reset (qk_tap_dance_state_t *state, void *user_data) {
+  unregister_mods(MOD_BIT(KC_LGUI));
+  is_gui_active = false;
+}
 
-void raisem3_finished (qk_tap_dance_state_t *state, void *user_data) {
+void raisetm_finished (qk_tap_dance_state_t *state, void *user_data) {
   td_state = cur_dance(state);
   switch (td_state) {
     case SINGLE_TAP:
       break;
     case SINGLE_HOLD:
+	  //default_layer_and(_RAISE);
+	  //layer_oR(_rAISE);
 	  layer_on(_RAISE);
 	  cumi_x = 0;
 	  cumi_y = 0;
 	  integrationMode = true;
+	  is_rai_active = true;
   }
 }
-void raisem3_reset (qk_tap_dance_state_t *state, void *user_data) {
+void raisetm_reset (qk_tap_dance_state_t *state, void *user_data) {
   switch (td_state) {
     case SINGLE_TAP:
       break;
     case SINGLE_HOLD:
 	  layer_off(_RAISE);
 	  integrationMode = false;
+	  is_rai_active = false;
   }
 }
 
+void lowertm_finished (qk_tap_dance_state_t *state, void *user_data) {
+  td_state = cur_dance(state);
+  switch (td_state) {
+    case SINGLE_TAP:
+      break;
+    case SINGLE_HOLD:
+	  layer_on(_LOWER);
+	  is_low_active = true;
+	  prev_trackMode = trackMode;
+	  trackMode = 3;
+  }
+}
+void lowertm_reset (qk_tap_dance_state_t *state, void *user_data) {
+  switch (td_state) {
+    case SINGLE_TAP:
+      break;
+    case SINGLE_HOLD:
+	  layer_off(_LOWER);
+	  is_low_active = false;
+	  trackMode = prev_trackMode;
+  }
+}
+
+
 // define `ACTION_TAP_DANCE_FN_ADVANCED()` for each tapdance keycode, passing in `finished` and `reset` functions
 qk_tap_dance_action_t tap_dance_actions[] = {
-  [SFT_TM] = ACTION_TAP_DANCE_FN_ADVANCED(NULL, sfttm_finished, sfttm_reset),
-  [CTL_TM] = ACTION_TAP_DANCE_FN_ADVANCED(NULL, ctltm_finished, ctltm_reset),
-  [ALT_TM] = ACTION_TAP_DANCE_FN_ADVANCED(NULL, alttm_finished, alttm_reset),
-  [RAISE_M3] = ACTION_TAP_DANCE_FN_ADVANCED(NULL, raisem3_finished, raisem3_reset)
+  [SFT_TM]   = ACTION_TAP_DANCE_FN_ADVANCED(NULL, sfttm_finished  , sfttm_reset),
+  [CTL_TM]   = ACTION_TAP_DANCE_FN_ADVANCED(NULL, ctltm_finished  , ctltm_reset),
+  [ALT_TM]   = ACTION_TAP_DANCE_FN_ADVANCED(NULL, alttm_finished  , alttm_reset),
+  [GUI_TM]   = ACTION_TAP_DANCE_FN_ADVANCED(NULL, guitm_finished  , guitm_reset),
+  [RAISE_TM] = ACTION_TAP_DANCE_FN_ADVANCED(NULL, raisetm_finished, raisetm_reset),
+  [LOWER_TM] = ACTION_TAP_DANCE_FN_ADVANCED(NULL, lowertm_finished, lowertm_reset)
 };
 
 void on_mouse_button(uint8_t mouse_button, bool pressed) {
@@ -274,10 +324,6 @@ void pointing_device_init(void){
         eeconfig_update_kb(kb_config.raw);
     }
 
-	//char snum[5];
-	//itoa(distanceFromOrigin, snum, 10);
-	//SEND_STRING(" init ");
-	//send_string(snum);
     pmw_set_config((config_pmw_t){ kb_config.cpi });
 }
 
@@ -285,10 +331,10 @@ int16_t cum_x = 0;
 int16_t cum_y = 0;
 
 // Triggers help to move only horizontal or vertical. When accumulated distance triggeres, only move one discrete value in direction with bigger delta.
-uint8_t carret_trigger = 120; // higher means slower
-uint8_t scroll_trigger = 60;
+uint16_t carret_trigger = 280;    // higher means slower
+uint8_t scroll_trigger = 90;
 
-float cursor_multiplier = 0.17; // adjust cursor speed
+float cursor_multiplier = 0.11;   // adjust cursor speed
 uint8_t integration_divisor = 50; // slow down every mode in integration mode
 
 void tap_tb(int16_t delta, uint16_t keycode0, uint16_t keycode1) {
@@ -304,6 +350,7 @@ int16_t clamped_y;
 int sign(int x) {
     return (x > 0) - (x < 0);
 }
+
 void pointing_device_task(void){
     if(!is_keyboard_master())
         return;
@@ -325,10 +372,25 @@ void pointing_device_task(void){
 		clamped_x = CLAMP_HID(pmw_report.x);
 		clamped_y = CLAMP_HID(pmw_report.y);
 	}
-    if(trackMode == 2) {//scroll
+    if (trackMode == 0) { //cursor (0)
+        mouse_report.x = (int)( clamped_x * cursor_multiplier);
+        mouse_report.y = (int)(-clamped_y * cursor_multiplier);
+    } else if (trackMode == 1) { //carret (1)
+		cum_x = cum_x + clamped_x;
+		cum_y = cum_y + clamped_y;
+		if(abs(cum_x) + abs(cum_y) >= carret_trigger){
+			if(abs(cum_x) > abs(cum_y)) {
+				tap_tb(cum_x, KC_RIGHT, KC_LEFT);
+			} else {
+				tap_tb(cum_y,  KC_UP, KC_DOWN  );
+			}
+			cum_x = 0;
+			cum_y = 0;
+		}
+	} else if(trackMode == 2) { //scroll
         // accumulate scroll untill triggered
-		cum_x = CLAMP_HID(cum_x + clamped_x);
-		cum_y = CLAMP_HID(cum_y + clamped_y);
+		cum_x = cum_x + clamped_x;
+		cum_y = cum_y + clamped_y;
 		if(abs(cum_x) + abs(cum_y) >= scroll_trigger){
 			if(abs(cum_x) > abs(cum_y)) {
 				mouse_report.h = sign(cum_x);
@@ -338,18 +400,14 @@ void pointing_device_task(void){
 			cum_x = 0;
 			cum_y = 0;
 		}
-    }
-	else if (trackMode == 0) { //cursor
-        mouse_report.x = (int)( clamped_x * cursor_multiplier);
-        mouse_report.y = (int)(-clamped_y * cursor_multiplier);
-    } else { //carret
-		cum_x = CLAMP_HID(cum_x + clamped_x);
-		cum_y = CLAMP_HID(cum_y + clamped_y);
+	} else { // sound vol/brightness (3)
+		cum_x = cum_x + clamped_x;
+		cum_y = cum_y + clamped_y;
 		if(abs(cum_x) + abs(cum_y) >= carret_trigger){
 			if(abs(cum_x) > abs(cum_y)) {
-				tap_tb(cum_x, KC_RIGHT, KC_LEFT);
+				tap_tb(cum_x, KC_BRIGHTNESS_UP, KC_BRIGHTNESS_DOWN);
 			} else {
-				tap_tb(cum_y,  KC_UP, KC_DOWN  );
+				tap_tb(cum_y, KC_AUDIO_VOL_UP, KC_AUDIO_VOL_DOWN);
 			}
 			cum_x = 0;
 			cum_y = 0;
@@ -366,6 +424,79 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
 
     // handle mouse drag and scroll
     switch (keycode) {
+
+		case KC_SPC_LSFT:
+    	  if (record->event.pressed) {
+			if (is_ctl_active || is_alt_active || is_gui_active || is_rai_active || is_low_active) {
+			  register_mods(MOD_BIT(KC_LSFT));
+			  is_spc_active = true;
+			} else {
+			  register_code(KC_SPC);
+			}
+		  } else {
+			if (is_spc_active) {
+			  unregister_mods(MOD_BIT(KC_LSFT));
+			  is_spc_active = false;
+			} else {
+			  unregister_code(KC_SPC);
+			}
+		  }
+          return false;
+
+		case KC_ENT_LGUI:
+    	  if (record->event.pressed) {
+			if (is_ctl_active || is_alt_active || is_sft_active || is_rai_active || is_low_active) {
+			  register_mods(MOD_BIT(KC_LGUI));
+			  is_ent_active = true;
+			} else {
+			  register_code(KC_ENT);
+			}
+		  } else {
+			if (is_ent_active) {
+			  unregister_mods(MOD_BIT(KC_LGUI));
+			  is_ent_active = false;
+			} else {
+			  unregister_code(KC_ENT);
+			}
+		  }
+          return false;
+
+		case KC_DEL_ALT:
+    	  if (record->event.pressed) {
+			if (is_ctl_active || is_sft_active || is_gui_active || is_rai_active || is_low_active) {
+			  register_mods(MOD_BIT(KC_LALT));
+			  is_del_active = true;
+			} else {
+			  register_code(KC_DEL);
+			}
+		  } else {
+			if (is_del_active) {
+			  unregister_mods(MOD_BIT(KC_LALT));
+			  is_del_active = false;
+			} else {
+			  unregister_code(KC_DEL);
+			}
+		  }
+          return false;
+
+		case KC_BSPC_LCTL:
+    	  if (record->event.pressed) {
+			if (is_sft_active || is_alt_active || is_gui_active || is_rai_active || is_low_active) {
+			  register_mods(MOD_BIT(KC_LCTL));
+			  is_bsp_active = true;
+			} else {
+			  register_code(KC_BSPC);
+			}
+		  } else {
+			if (is_bsp_active) {
+			  unregister_mods(MOD_BIT(KC_LCTL));
+			  is_bsp_active = false;
+			} else {
+			  unregister_code(KC_BSPC);
+			}
+		  }
+          return false;
+
 		case KC_SCLN_INV:
     	  if (record->event.pressed) {
 			if (is_sft_active) {
@@ -435,4 +566,3 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
 	    motion_time = timer_read32() + 50;
 	}
 #endif
-
