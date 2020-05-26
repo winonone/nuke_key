@@ -32,12 +32,10 @@
 
 // tapdance keycodes
 enum td_keycodes {
-  ALT_TM, // 
-  SFT_TM, // 
-  CTL_TM, // 
-  GUI_TM, // 
-  RAISE_TM, // 
-  LOWER_TM // 
+  ALT_TM,
+  SFT_TM,
+  CTL_TM,
+  GUI_TM
 };
 
 // define a type containing as many tapdance states as you need
@@ -68,11 +66,11 @@ void lowertm_reset (qk_tap_dance_state_t *state, void *user_data);
 
 enum custom_keycodes {
     KC_INTE = SAFE_RANGE,
-    KC_CURS,
-    KC_SCRL,
-    KC_CHRT,
+    KC_RAISE,
+    KC_LOWER,
     KC_SCLN_INV,
 	KC_QUOT_NOT_US_INT,
+	KC_TILD_NOT_US_INT,
 	KC_BSPC_LCTL,
 	KC_DEL_ALT,
 	KC_ENT_LGUI,
@@ -82,32 +80,24 @@ enum custom_keycodes {
     KC_CPI_3
 };
 
-typedef union {
-  uint32_t raw;
-  struct {
-    uint16_t cpi;
-  };
-} config_dmrt_t;
-
-
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
 [_COLEMAK] = LAYOUT_5x6(
 //KC_EQL,  KC_1  , KC_2  , KC_3  , KC_4  , KC_5  ,                      KC_6  , KC_7  , KC_8  , KC_9  , KC_0        ,KC_QUOT_NOT_US_INT,
-DF(_COLEMAK),  MO(_RAISE)  , KC_2  , KC_3  , KC_4  , KC_5  ,                      KC_6  , KC_7  , KC_8  , KC_9  , KC_0        ,KC_QUOT_NOT_US_INT,
-KC_TAB,  KC_Q  , KC_W  , KC_F  , KC_P  , KC_G  ,                      KC_J  , KC_L  , KC_U  , KC_Y  , KC_SCLN_INV ,KC_MINS,
-KC_ESC,  KC_A  , KC_R  , KC_S  , KC_T  , KC_D  ,                      KC_H  , KC_N  , KC_E  , KC_I  , KC_O        ,TD(RAISE_TM),
-KC_TILD, KC_Z  , KC_X  , KC_C  , KC_V  , KC_B  ,                      KC_K  , KC_M  ,KC_COMM, KC_DOT, KC_SLSH     ,KC_BSLASH,
+KC_CPI_1,           KC_CPI_2, KC_CPI_3, KC_3 , KC_4 , KC_5  ,            KC_CPI_1, KC_CPI_2  , KC_CPI_3   , KC_9  , KC_0        ,KC_QUOT_NOT_US_INT,
+KC_TAB,             KC_Q ,    KC_W  ,   KC_F , KC_P , KC_G  ,            KC_J  ,   KC_L  ,     KC_U       , KC_Y  , KC_SCLN_INV ,KC_MINS,
+KC_ESC,             KC_A ,    KC_R  ,   KC_S , KC_T , KC_D  ,            KC_H  ,   KC_N  ,     KC_E       , KC_I  , KC_O        ,KC_RAISE,
+KC_TILD_NOT_US_INT, KC_Z ,    KC_X  ,   KC_C , KC_V , KC_B  ,            KC_K  ,   KC_M  ,     KC_COMM    , KC_DOT, KC_SLSH     ,KC_BSLASH,
                   KC_MS_BTN1, KC_MS_BTN2,                                       KC_MS_BTN3, KC_LGUI,
-                                 TD(SFT_TM),  TD(RAISE_TM),        _______,  KC_SPC_LSFT,
+                                 TD(SFT_TM),  KC_RAISE,        _______,  KC_SPC_LSFT,
                                  TD(CTL_TM),  TD(GUI_TM),          _______,  KC_ENT_LGUI,
-                                 TD(ALT_TM),  TD(LOWER_TM),        KC_BSPC_LCTL, KC_DEL_ALT
+                                 TD(ALT_TM),  KC_LOWER,        KC_BSPC_LCTL, KC_DEL_ALT
 ),
 
 [_LOWER] = LAYOUT_5x6(
 
 KC_TILD,KC_EXLM   , KC_AT     , KC_HASH   , KC_DLR ,KC_PERC,          KC_CIRC, KC_AMPR       , KC_ASTR    , KC_LPRN  , KC_RPRN   , KC_DEL,
-_______,KC_HOME   , KC_PGUP   , KC_PGDN   , KC_END ,_______,          KC_HOME, KC_END        , RALT(KC_Y) , KC_PGUP  , _______   , KC_PLUS,
+_______,KC_HOME   , KC_PGUP   , KC_PGDN   , KC_END ,_______,          KC_HOME, KC_END        , RALT(KC_Y) , KC_PGUP  , RALT(LSFT(KC_SCLN)) , KC_PLUS,
 _______,RALT(KC_Q),RALT(KC_S) ,RALT(KC_S) , KC_RBRC,_______,          _______, LSFT(KC_LBRC) , RALT(KC_5) , KC_PGDN  , RALT(KC_P), KC_MUTE,
 KC_F12 ,KC_F1     , KC_F2     , KC_F3     , KC_F4  , KC_F5 ,          KC_F6  , KC_F7         , KC_F8      , KC_F9    , KC_F10    , KC_F11 ,
                               _______,_______,                           _______,_______,
@@ -120,7 +110,7 @@ KC_F12 ,KC_F1     , KC_F2     , KC_F3     , KC_F4  , KC_F5 ,          KC_F6  , K
 _______,KC_LEFT   , KC_U     , KC_DOWN , KC_RGHT,KC_LPRN,            KC_RPRN, KC_MPRV      , KC_MPLY      , KC_MNXT  , _______   , KC_VOLU,
 KC_EQL,  KC_1     , KC_2     , KC_3    , KC_4   , KC_5  ,            KC_6   , KC_7         , KC_8         , KC_9     , KC_0      ,KC_QUOT_NOT_US_INT,
 _______,KC_LPRN   , KC_RPRN  , KC_LBRC , KC_RBRC,KC_LBRC,            KC_RBRC, LSFT(KC_LBRC),LSFT(KC_RBRC) ,LSFT(KC_COMM),LSFT(KC_DOT),KC_MS_BTN3,
-KC_TILD,KC_EXLM   , KC_AT     ,KC_HASH , KC_DLR ,KC_PERC,            KC_CIRC, KC_AMPR      , KC_ASTR      , KC_LPRN  , KC_RPRN   , KC_DEL,
+KC_TILD,KC_EXLM   , KC_AT     ,KC_HASH , KC_DLR ,KC_PERC,            KC_CIRC, KC_AMPR      , KC_ASTR      , KC_PLUS  , KC_EQL   , KC_DEL,
                              _______,_______,                              _______,_______,
                                         _______,_______,           _______,_______,
                                         _______,_______,           _______,_______,
@@ -146,11 +136,19 @@ bool is_del_active = false;
 bool is_ent_active = false;
 bool is_bsp_active = false;
 
+
+// Triggers help to move only horizontal or vertical. When accumulated distance triggeres, only move one discrete value in direction with bigger delta.
+uint16_t carret_trigger = 28;     // higher means slower
+uint8_t scroll_trigger = 8;
+
+float cursor_multiplier = 1.6;    // adjust cursor speed
+uint8_t integration_divisor = 100; // slow down every mode in integration mode
+
 // determine the tapdance state to return
 int cur_dance (qk_tap_dance_state_t *state) {
   if (state->count == 1) {
-    //if (state->interrupted || !state->pressed) { return SINGLE_TAP; }
-    if (!state->pressed) { return SINGLE_TAP; }
+    //if (state->interrupted || !state->pressed) { return SINGLE_TAP; } //interrupted sends SINGLE_TAP
+    if (!state->pressed) { return SINGLE_TAP; } //interrupted sends SINGLE_HOLD
     else { return SINGLE_HOLD; }
   }
   else { return 2; } // any number higher than the maximum state value you return above
@@ -226,64 +224,12 @@ void guitm_reset (qk_tap_dance_state_t *state, void *user_data) {
   is_gui_active = false;
 }
 
-void raisetm_finished (qk_tap_dance_state_t *state, void *user_data) {
-  td_state = cur_dance(state);
-  switch (td_state) {
-    case SINGLE_TAP:
-      break;
-    case SINGLE_HOLD:
-	  //default_layer_and(_RAISE);
-	  //layer_oR(_rAISE);
-	  layer_on(_RAISE);
-	  cumi_x = 0;
-	  cumi_y = 0;
-	  integrationMode = true;
-	  is_rai_active = true;
-  }
-}
-void raisetm_reset (qk_tap_dance_state_t *state, void *user_data) {
-  switch (td_state) {
-    case SINGLE_TAP:
-      break;
-    case SINGLE_HOLD:
-	  layer_off(_RAISE);
-	  integrationMode = false;
-	  is_rai_active = false;
-  }
-}
-
-void lowertm_finished (qk_tap_dance_state_t *state, void *user_data) {
-  td_state = cur_dance(state);
-  switch (td_state) {
-    case SINGLE_TAP:
-      break;
-    case SINGLE_HOLD:
-	  layer_on(_LOWER);
-	  is_low_active = true;
-	  prev_trackMode = trackMode;
-	  trackMode = 3;
-  }
-}
-void lowertm_reset (qk_tap_dance_state_t *state, void *user_data) {
-  switch (td_state) {
-    case SINGLE_TAP:
-      break;
-    case SINGLE_HOLD:
-	  layer_off(_LOWER);
-	  is_low_active = false;
-	  trackMode = prev_trackMode;
-  }
-}
-
-
 // define `ACTION_TAP_DANCE_FN_ADVANCED()` for each tapdance keycode, passing in `finished` and `reset` functions
 qk_tap_dance_action_t tap_dance_actions[] = {
   [SFT_TM]   = ACTION_TAP_DANCE_FN_ADVANCED(NULL, sfttm_finished  , sfttm_reset),
   [CTL_TM]   = ACTION_TAP_DANCE_FN_ADVANCED(NULL, ctltm_finished  , ctltm_reset),
   [ALT_TM]   = ACTION_TAP_DANCE_FN_ADVANCED(NULL, alttm_finished  , alttm_reset),
   [GUI_TM]   = ACTION_TAP_DANCE_FN_ADVANCED(NULL, guitm_finished  , guitm_reset),
-  [RAISE_TM] = ACTION_TAP_DANCE_FN_ADVANCED(NULL, raisetm_finished, raisetm_reset),
-  [LOWER_TM] = ACTION_TAP_DANCE_FN_ADVANCED(NULL, lowertm_finished, lowertm_reset)
 };
 
 void on_mouse_button(uint8_t mouse_button, bool pressed) {
@@ -297,45 +243,15 @@ void on_mouse_button(uint8_t mouse_button, bool pressed) {
 	pointing_device_send();
 }
 
-void on_cpi_button(int16_t cpi) {
-    // read cpi first to prevent unnecessary writes to EEPROM
-    if(pmw_get_config().cpi == cpi)
-        return;
-
-    pmw_set_config((config_pmw_t){ cpi });
-
-    config_dmrt_t kb_config;
-    kb_config.cpi = cpi;
-    eeconfig_update_kb(kb_config.raw);
-}
-
 void pointing_device_init(void){
     if(!is_keyboard_master())
         return;
-
     pmw_init();
-    // read config from EEPROM and update if needed
-
-    config_dmrt_t kb_config;
-    kb_config.raw = eeconfig_read_kb();
-
-    if(!kb_config.cpi) {
-        kb_config.cpi = CPI_2;
-        eeconfig_update_kb(kb_config.raw);
-    }
-
-    pmw_set_config((config_pmw_t){ kb_config.cpi });
 }
 
 int16_t cum_x = 0;
 int16_t cum_y = 0;
 
-// Triggers help to move only horizontal or vertical. When accumulated distance triggeres, only move one discrete value in direction with bigger delta.
-uint16_t carret_trigger = 280;    // higher means slower
-uint8_t scroll_trigger = 90;
-
-float cursor_multiplier = 0.11;   // adjust cursor speed
-uint8_t integration_divisor = 50; // slow down every mode in integration mode
 
 void tap_tb(int16_t delta, uint16_t keycode0, uint16_t keycode1) {
 	if(delta > 0) {
@@ -361,12 +277,16 @@ void pointing_device_task(void){
 	if (integrationMode) {
 		cumi_x += pmw_report.x;
 		cumi_y += pmw_report.y;
-		if (trackMode == 1) { //cursor
-			clamped_x = CLAMP_HID(cumi_x / (integration_divisor / 2));
-			clamped_y = CLAMP_HID(cumi_y / (integration_divisor / 2));
-		} else {
+
+		if (trackMode == 1) { //carret
+			clamped_x = CLAMP_HID(cumi_x / (integration_divisor / 20));
+			clamped_y = CLAMP_HID(cumi_y / (integration_divisor / 20));
+		} else if (trackMode == 2) { //scroll
 			clamped_x = CLAMP_HID(cumi_x / integration_divisor);
 			clamped_y = CLAMP_HID(cumi_y / integration_divisor);
+		} else { //cursor
+			clamped_x = CLAMP_HID(cumi_x / (integration_divisor));
+			clamped_y = CLAMP_HID(cumi_y / (integration_divisor));
 		}
 	} else {
 		clamped_x = CLAMP_HID(pmw_report.x);
@@ -424,6 +344,33 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
 
     // handle mouse drag and scroll
     switch (keycode) {
+
+		case KC_LOWER:
+    	  if (record->event.pressed) {
+			layer_on(_LOWER);
+	  		is_low_active = true;
+	  		prev_trackMode = trackMode;
+	  		trackMode = 3;
+		  } else {
+			layer_off(_LOWER);
+	  		is_low_active = false;
+	  		trackMode = prev_trackMode;
+		  }
+          return false;
+
+		case KC_RAISE:
+    	  if (record->event.pressed) {
+			layer_on(_RAISE);
+	  		cumi_x = 0;
+	  		cumi_y = 0;
+	  		integrationMode = true;
+	  		is_rai_active = true;
+		  } else {
+			layer_off(_RAISE);
+  		    integrationMode = false;
+  		    is_rai_active = false;
+		  }
+          return false;
 
 		case KC_SPC_LSFT:
     	  if (record->event.pressed) {
@@ -497,25 +444,48 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
 		  }
           return false;
 
+		// no repetitive ::: with holding
 		case KC_SCLN_INV:
     	  if (record->event.pressed) {
 			if (is_sft_active) {
 			  unregister_mods(MOD_BIT(KC_LSFT));
-			  register_code(KC_SCLN);
-			} else {
-			  register_mods(MOD_BIT(KC_LSFT));
-			  register_code(KC_SCLN);
-			}
-		  } else {
-			if (is_sft_active) {
-			  unregister_code(KC_SCLN);
+			  tap_code(KC_SCLN);
 			  register_mods(MOD_BIT(KC_LSFT));
 			} else {
-			  unregister_code(KC_SCLN);
+			  register_mods(MOD_BIT(KC_LSFT));
+			  tap_code(KC_SCLN);
 			  unregister_mods(MOD_BIT(KC_LSFT));
 			}
 		  }
           return false;
+
+		// ;: confusion in some corner cases
+		//case KC_SCLN_INV:
+    	//  if (record->event.pressed) {
+		//	if (is_sft_active) {
+		//	  unregister_mods(MOD_BIT(KC_LSFT));
+		//	  register_code(KC_SCLN);
+		//	} else {
+		//	  register_mods(MOD_BIT(KC_LSFT));
+		//	  register_code(KC_SCLN);
+		//	}
+		//  } else {
+		//	if (is_sft_active) {
+		//	  unregister_code(KC_SCLN);
+		//	  register_mods(MOD_BIT(KC_LSFT));
+		//	} else {
+		//	  unregister_code(KC_SCLN);
+		//	  unregister_mods(MOD_BIT(KC_LSFT));
+		//	}
+		//  }
+        //  return false;
+
+		case KC_TILD_NOT_US_INT:
+    	  if (record->event.pressed) {
+			  tap_code16(KC_TILD);
+			  tap_code(KC_SPC);
+		  }
+		  return false;
 
 		case KC_QUOT_NOT_US_INT:
     	  if (record->event.pressed) {
@@ -545,15 +515,16 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
             return false;
 
         case KC_CPI_1:
-            on_cpi_button(CPI_1);
+			if (cursor_multiplier > 0.2)
+				cursor_multiplier = cursor_multiplier - 0.2;
             return false;
 
         case KC_CPI_2:
-            on_cpi_button(CPI_2);
+			cursor_multiplier = 1.6;
             return false;
 
         case KC_CPI_3:
-            on_cpi_button(CPI_3);
+			cursor_multiplier = cursor_multiplier + 0.2;
             return false;
 
 		default:
@@ -561,8 +532,8 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
   }
 }
 
-#ifndef POLLING
-	ISR(INT2_vect) {
-	    motion_time = timer_read32() + 50;
-	}
-#endif
+//#ifndef POLLING
+//	ISR(INT2_vect) {
+//	    motion_time = timer_read32() + 50;
+//	}
+//#endif

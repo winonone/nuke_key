@@ -105,7 +105,7 @@ void pmw_init(void) {
 	#endif
 
 	SPI_Init(
-			SPI_SPEED_FCPU_DIV_4 | 
+			SPI_SPEED_FCPU_DIV_2 | 
 			SPI_ORDER_MSB_FIRST | 
 			SPI_SCK_LEAD_FALLING | 
 			SPI_SAMPLE_TRAILING | 
@@ -118,7 +118,7 @@ void pmw_init(void) {
     pmw_end();
     // reboot
     pmw_write(Power_Up_Reset, 0x5a);
-    wait_ms(150);
+    wait_ms(50);
     // read registers and discard
     pmw_read(Motion);
     pmw_read(Delta_X_L);
@@ -154,7 +154,7 @@ void pmw_init(void) {
     pmw_write(Config2, 0x00);
     // // set initial CPI resolution
     // ////pmw_write(Config1, 0x15); // was this
-    pmw_write(Config1, 0x77);
+	pmw_write(Config1, 0x07);
     pmw_end();
     wait_ms(10);
 }
