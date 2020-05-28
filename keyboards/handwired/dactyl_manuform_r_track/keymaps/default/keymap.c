@@ -252,7 +252,6 @@ void pointing_device_init(void){
 int16_t cum_x = 0;
 int16_t cum_y = 0;
 
-
 void tap_tb(int16_t delta, uint16_t keycode0, uint16_t keycode1) {
 	if(delta > 0) {
 		tap_code(keycode0);
@@ -277,28 +276,25 @@ void pointing_device_task(void){
 	if (integrationMode) {
 		cumi_x += pmw_report.x;
 		cumi_y += pmw_report.y;
-
-		if (trackMode == 1) { //carret
-			clamped_x = CLAMP_HID(cumi_x / (integration_divisor / 20));
-			clamped_y = CLAMP_HID(cumi_y / (integration_divisor / 20));
-		} else if (trackMode == 2) { //scroll
-			clamped_x = CLAMP_HID(cumi_x / integration_divisor);
-			clamped_y = CLAMP_HID(cumi_y / integration_divisor);
-		} else { //cursor
-			clamped_x = CLAMP_HID(cumi_x / (integration_divisor));
-			clamped_y = CLAMP_HID(cumi_y / (integration_divisor));
-		}
+		clamped_x = cumi_x;
+		clamped_y = cumi_y;
 	} else {
 		clamped_x = CLAMP_HID(pmw_report.x);
 		clamped_y = CLAMP_HID(pmw_report.y);
 	}
+	bool cond;
     if (trackMode == 0) { //cursor (0)
         mouse_report.x = (int)( clamped_x * cursor_multiplier);
         mouse_report.y = (int)(-clamped_y * cursor_multiplier);
     } else if (trackMode == 1) { //carret (1)
 		cum_x = cum_x + clamped_x;
 		cum_y = cum_y + clamped_y;
-		if(abs(cum_x) + abs(cum_y) >= carret_trigger){
+		if (integrationMode) {
+			cond = abs(cum_x) + abs(cum_y) >= carret_trigger*integration_divisor/20;
+		} else {
+			cond = abs(cum_x) + abs(cum_y) >= carret_trigger;
+		}
+		if(cond){
 			if(abs(cum_x) > abs(cum_y)) {
 				tap_tb(cum_x, KC_RIGHT, KC_LEFT);
 			} else {
@@ -308,10 +304,15 @@ void pointing_device_task(void){
 			cum_y = 0;
 		}
 	} else if(trackMode == 2) { //scroll
-        // accumulate scroll untill triggered
-		cum_x = cum_x + clamped_x;
-		cum_y = cum_y + clamped_y;
-		if(abs(cum_x) + abs(cum_y) >= scroll_trigger){
+        // accumulate movement until triggered
+		cum_x += clamped_x;
+		cum_y += clamped_y;
+		if (integrationMode) {
+			cond = abs(cum_x) + abs(cum_y) >= scroll_trigger*integration_divisor;
+		} else {
+			cond = abs(cum_x) + abs(cum_y) >= scroll_trigger;
+		}
+		if(cond){
 			if(abs(cum_x) > abs(cum_y)) {
 				mouse_report.h = sign(cum_x);
 			} else {
