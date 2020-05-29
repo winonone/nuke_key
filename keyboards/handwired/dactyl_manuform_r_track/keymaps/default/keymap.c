@@ -380,14 +380,14 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
 		case KC_RAISE:
     	  if (record->event.pressed) {
 			layer_on(_RAISE);
-	  		cumi_x = 0;
-	  		cumi_y = 0;
 	  		integrationMode = true;
 	  		is_rai_active = true;
 		  } else {
 			layer_off(_RAISE);
 	  		cumi_x = 0;
 	  		cumi_y = 0;
+	  		cum_x = 0;
+	  		cum_y = 0;
   		    integrationMode = false;
   		    is_rai_active = false;
 		  }
