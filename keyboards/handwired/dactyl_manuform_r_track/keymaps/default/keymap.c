@@ -24,10 +24,6 @@
 
 #include "pointing_device.h"
 #include "../../pmw3360/pmw3360.h"
-#define SCROLL_DIVIDER 12
-#define CPI_1 6000
-#define CPI_2 10000
-#define CPI_3 11000
 #define CLAMP_HID(value) value < -127 ? -127 : value > 127 ? 127 : value
 
 // tapdance keycodes
@@ -123,6 +119,11 @@ uint8_t prev_trackMode = 0;
 bool integrationMode = false;
 int16_t cumi_x = 0;
 int16_t cumi_y = 0;
+int16_t cum_x = 0;
+int16_t cum_y = 0;
+int16_t clamped_x;
+int16_t clamped_y;
+
 //identify keycombinations
 bool is_sft_active = false;
 bool is_ctl_active = false;
@@ -136,13 +137,14 @@ bool is_del_active = false;
 bool is_ent_active = false;
 bool is_bsp_active = false;
 
-
 // Triggers help to move only horizontal or vertical. When accumulated distance triggeres, only move one discrete value in direction with bigger delta.
-uint16_t carret_trigger = 28;     // higher means slower
-uint8_t scroll_trigger = 8;
-
-float cursor_multiplier = 1.6;    // adjust cursor speed
-uint8_t integration_divisor = 100; // slow down every mode in integration mode
+uint8_t  carret_trigger = 24;       // higher means slower
+uint16_t carret_trigger_inte = 340; // in integration mode higher trigger
+uint8_t  scroll_trigger = 8;
+uint16_t scroll_trigger_inte = 1000;
+uint8_t integration_divisor = 100; // slow down every thing in integration mode
+float cursor_multiplier = 200;    // adjust cursor speed
+float cursor_multiplier_inte = 20;
 
 // determine the tapdance state to return
 int cur_dance (qk_tap_dance_state_t *state) {
@@ -249,21 +251,52 @@ void pointing_device_init(void){
     pmw_init();
 }
 
-int16_t cum_x = 0;
-int16_t cum_y = 0;
-
-void tap_tb(int16_t delta, uint16_t keycode0, uint16_t keycode1) {
-	if(delta > 0) {
-		tap_code(keycode0);
-	} else if(delta < 0) {
-		tap_code(keycode1);
-	}
-}
-
-int16_t clamped_x;
-int16_t clamped_y;
 int sign(int x) {
     return (x > 0) - (x < 0);
+}
+int max(int num1, int num2)
+{
+    return (num1 > num2 ) ? num1 : num2;
+}
+int min(int num1, int num2) 
+{
+    return (num1 > num2 ) ? num2 : num1;
+}
+
+int16_t factor;
+
+void tap_tb(uint16_t keycode0, uint16_t keycode1, uint16_t keycode2, uint16_t keycode3) {
+	if(abs(cum_x) + abs(cum_y) >= factor){
+		if(abs(cum_x) > abs(cum_y)) {
+			if(cum_x > 0) {
+				for (int i = 0; i <= (abs(cum_x) + abs(cum_y)) / factor; i++) {
+					tap_code(keycode0);
+					cum_x = max(cum_x - factor, 0);
+				}
+				cum_y = 0;
+			} else {
+				for (int i = 0; i <= (abs(cum_x) + abs(cum_y)) / factor; i++) {
+					tap_code(keycode1);
+					cum_x = min(cum_x + factor, 0);
+				}
+				cum_y = 0;
+			}
+		} else {
+			if(cum_y > 0) {
+				for (int i = 0; i <= (abs(cum_x) + abs(cum_y)) / factor; i++) {
+					tap_code(keycode2);
+					cum_y = max(cum_y - factor, 0);
+					}
+				cum_x = 0;
+			} else {
+				for (int i = 0; i <= (abs(cum_x) + abs(cum_y)) / factor; i++) {
+					tap_code(keycode3);
+					cum_y = min(cum_y + factor, 0);
+				}
+				cum_x = 0;
+			}
+		}
+	}
 }
 
 void pointing_device_task(void){
@@ -276,63 +309,48 @@ void pointing_device_task(void){
 	if (integrationMode) {
 		cumi_x += pmw_report.x;
 		cumi_y += pmw_report.y;
-		clamped_x = cumi_x;
-		clamped_y = cumi_y;
+		clamped_x = CLAMP_HID(cumi_x);
+		clamped_y = CLAMP_HID(cumi_y);
 	} else {
 		clamped_x = CLAMP_HID(pmw_report.x);
 		clamped_y = CLAMP_HID(pmw_report.y);
 	}
-	bool cond;
-    if (trackMode == 0) { //cursor (0)
-        mouse_report.x = (int)( clamped_x * cursor_multiplier);
-        mouse_report.y = (int)(-clamped_y * cursor_multiplier);
-    } else if (trackMode == 1) { //carret (1)
+
+    if (trackMode != 0) {
+        // accumulate movement until triggered
 		cum_x = cum_x + clamped_x;
 		cum_y = cum_y + clamped_y;
-		if (integrationMode) {
-			cond = abs(cum_x) + abs(cum_y) >= carret_trigger*integration_divisor/20;
-		} else {
-			cond = abs(cum_x) + abs(cum_y) >= carret_trigger;
-		}
-		if(cond){
-			if(abs(cum_x) > abs(cum_y)) {
-				tap_tb(cum_x, KC_RIGHT, KC_LEFT);
-			} else {
-				tap_tb(cum_y,  KC_UP, KC_DOWN  );
-			}
-			cum_x = 0;
-			cum_y = 0;
-		}
+	}
+    if (trackMode == 0) { //cursor (0)
+		if (integrationMode)
+			factor = cursor_multiplier_inte;
+		else
+			factor = cursor_multiplier;
+        mouse_report.x = ( clamped_x * factor) / 100;
+        mouse_report.y = (-clamped_y * factor) / 100;
+    } else if (trackMode == 1) { //carret (1)
+		if (integrationMode)
+			factor = carret_trigger_inte;
+		else
+			factor = carret_trigger;
+		tap_tb(KC_RIGHT, KC_LEFT, KC_UP, KC_DOWN);
 	} else if(trackMode == 2) { //scroll
-        // accumulate movement until triggered
-		cum_x += clamped_x;
-		cum_y += clamped_y;
-		if (integrationMode) {
-			cond = abs(cum_x) + abs(cum_y) >= scroll_trigger*integration_divisor;
-		} else {
-			cond = abs(cum_x) + abs(cum_y) >= scroll_trigger;
-		}
-		if(cond){
+		if (integrationMode)
+			factor = scroll_trigger_inte;
+		else
+			factor = scroll_trigger;
+		if(abs(cum_x) + abs(cum_y) >= factor){
 			if(abs(cum_x) > abs(cum_y)) {
-				mouse_report.h = sign(cum_x);
+				mouse_report.h = sign(cum_x) * (abs(cum_x) + abs(cum_y)) / factor;
 			} else {
-				mouse_report.v = sign(cum_y);
+				mouse_report.v = sign(cum_y) * (abs(cum_x) + abs(cum_y)) / factor;
 			}
 			cum_x = 0;
 			cum_y = 0;
 		}
 	} else { // sound vol/brightness (3)
-		cum_x = cum_x + clamped_x;
-		cum_y = cum_y + clamped_y;
-		if(abs(cum_x) + abs(cum_y) >= carret_trigger){
-			if(abs(cum_x) > abs(cum_y)) {
-				tap_tb(cum_x, KC_BRIGHTNESS_UP, KC_BRIGHTNESS_DOWN);
-			} else {
-				tap_tb(cum_y, KC_AUDIO_VOL_UP, KC_AUDIO_VOL_DOWN);
-			}
-			cum_x = 0;
-			cum_y = 0;
-		}
+		factor = carret_trigger;
+		tap_tb(KC_BRIGHTNESS_UP, KC_BRIGHTNESS_DOWN, KC_AUDIO_VOL_UP, KC_AUDIO_VOL_DOWN);
 	}
     pointing_device_set_report(mouse_report);
     pointing_device_send();
@@ -368,6 +386,8 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
 	  		is_rai_active = true;
 		  } else {
 			layer_off(_RAISE);
+	  		cumi_x = 0;
+	  		cumi_y = 0;
   		    integrationMode = false;
   		    is_rai_active = false;
 		  }
@@ -460,7 +480,7 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
 		  }
           return false;
 
-		// ;: confusion in some corner cases
+		// ; and : gets confused in some corner cases
 		//case KC_SCLN_INV:
     	//  if (record->event.pressed) {
 		//	if (is_sft_active) {
@@ -516,16 +536,16 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
             return false;
 
         case KC_CPI_1:
-			if (cursor_multiplier > 0.2)
-				cursor_multiplier = cursor_multiplier - 0.2;
+			if (cursor_multiplier > 20)
+				cursor_multiplier = cursor_multiplier - 20;
             return false;
 
         case KC_CPI_2:
-			cursor_multiplier = 1.6;
+			cursor_multiplier = 160;
             return false;
 
         case KC_CPI_3:
-			cursor_multiplier = cursor_multiplier + 0.2;
+			cursor_multiplier = cursor_multiplier + 20;
             return false;
 
 		default:
